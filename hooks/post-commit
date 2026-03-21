@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Post-commit hook: update the semantic index for this repository.
+#
+# Installation (choose one):
+#   # Copy (manual sync required after updates):
+#   cp hooks/post-commit .git/hooks/post-commit
+#   chmod +x .git/hooks/post-commit
+#
+#   # Symlink (automatically picks up hook changes):
+#   ln -sf ../../hooks/post-commit .git/hooks/post-commit
+#
+# Configuration (set in your shell profile, .env, or as git config):
+#   MCP_PROJECT_NAME   Identifier for this project in the semantic index.
+#                      Defaults to the repository's directory name.
+#   MCP_SERVER_CMD     Override the MCP server launch command.
+#                      Defaults to "node dist/index.js" when dist/index.js exists,
+#                      otherwise "npx codebase-semantics-mcp".
+#   MCP_DATA_DIR       Data directory used by the MCP server.
+#   OLLAMA_BASE_URL    Ollama API base URL (default: http://localhost:11434).
+#   OLLAMA_MODEL       Ollama embedding model (default: nomic-embed-text).
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PROJECT_NAME="${MCP_PROJECT_NAME:-$(basename "$REPO_ROOT")}"
+HELPER="${REPO_ROOT}/scripts/mcp-index.mjs"
+
+if [ ! -f "$HELPER" ]; then
+  echo "[post-commit] Skipping semantic index update: $HELPER not found." >&2
+  exit 0
+fi
+
+echo "[post-commit] Updating semantic index for project '${PROJECT_NAME}'..."
+node "$HELPER" --name "$PROJECT_NAME" --path "$REPO_ROOT"

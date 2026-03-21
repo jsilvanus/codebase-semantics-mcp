@@ -189,6 +189,48 @@ Dockerfile                # Multi-stage image build for the MCP server
 docker-compose.yml        # Ollama + MCP services on the mcp-net network
 ```
 
+## Git Hook — automatic semantic index on commit
+
+The repository ships a `post-commit` hook template that automatically re-indexes
+the project every time you commit.  Because indexing is incremental, only the
+files that changed since the previous run are re-embedded — so the hook is fast.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `hooks/post-commit` | Shell script template (copy or symlink into `.git/hooks/`) |
+| `scripts/mcp-index.mjs` | Node.js helper that talks to the local MCP server |
+
+### Installation
+
+```sh
+# Symlink (recommended — stays in sync with future hook changes):
+ln -sf ../../hooks/post-commit .git/hooks/post-commit
+
+# Or copy (you'll need to re-copy after hook updates):
+cp hooks/post-commit .git/hooks/post-commit
+chmod +x .git/hooks/post-commit
+```
+
+### Prerequisites
+
+- Node.js ≥ 18
+- Ollama running with the embedding model: `ollama pull nomic-embed-text`
+- MCP server built: `npm run build`
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCP_PROJECT_NAME` | repo directory name | Project identifier in the index |
+| `MCP_SERVER_CMD` | `node dist/index.js` | Override the MCP server launch command |
+| `MCP_DATA_DIR` | `<repo>/data` | Directory where `index.db` is stored |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API base URL |
+| `OLLAMA_MODEL` | `nomic-embed-text` | Ollama embedding model |
+
+---
+
 ## Development
 
 ```sh
