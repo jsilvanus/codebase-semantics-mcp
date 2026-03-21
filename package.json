@@ -1,0 +1,27 @@
+{
+  "name": "codebase-semantics-mcp",
+  "version": "0.1.0",
+  "description": "Local MCP server with Ollama for semantic codebase search",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "codebase-semantics-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@typescript-eslint/typescript-estree": "^8.29.0",
+    "better-sqlite3": "^11.9.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.14",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

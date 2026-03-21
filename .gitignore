@@ -1,0 +1,9 @@
+node_modules/
+dist/
+data/projects/*.db
+data/projects/*.db-shm
+data/projects/*.db-wal
+*.db
+*.db-shm
+*.db-wal
+.env
