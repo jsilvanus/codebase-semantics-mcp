@@ -1,0 +1,77 @@
+# docker-compose.yml
+#
+# Starts Ollama and (optionally) a one-shot MCP helper service.
+# The MCP server itself is launched per-request by your MCP client (e.g.
+# Claude Desktop) via `docker run` — see README for the full config snippet.
+
+services:
+  # ── Ollama embedding service ─────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"           # expose to host so clients on localhost work too
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - mcp-net
+    restart: unless-stopped
+    # GPU pass-through (optional — remove if you have no compatible GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ── One-shot model pull ───────────────────────────────────────────────────────
+  # Runs once to ensure the embedding model is available, then exits.
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama-pull
+    depends_on:
+      - ollama
+    networks:
+      - mcp-net
+    entrypoint: >
+      sh -c "
+        until ollama --host http://ollama:11434 list > /dev/null 2>&1; do
+          echo 'Waiting for Ollama to be ready...'; sleep 2;
+        done &&
+        OLLAMA_HOST=http://ollama:11434 ollama pull nomic-embed-text
+      "
+    restart: "no"
+
+  # ── MCP server (build-time validation / manual usage) ────────────────────────
+  # This service is NOT used during normal Claude Desktop MCP invocations.
+  # Claude Desktop launches a fresh `docker run` per session (see README).
+  # Use this to build the image and run ad-hoc smoke-tests:
+  #   docker compose run --rm codebase-semantics-mcp node dist/index.js
+  codebase-semantics-mcp:
+    build: .
+    image: codebase-semantics-mcp:latest
+    container_name: codebase-semantics-mcp
+    networks:
+      - mcp-net
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=nomic-embed-text
+      - MCP_DATA_DIR=/data
+    volumes:
+      - mcp-data:/data
+      # Mount any project directories you want to index, e.g.:
+      # - C:/Users/you/projects/my-app:/projects/my-app:ro
+    depends_on:
+      - ollama
+    stdin_open: true
+    profiles:
+      - tools   # not started by `docker compose up` unless explicitly requested
+
+volumes:
+  ollama-data:
+  mcp-data:
+
+networks:
+  mcp-net:
+    name: mcp-net

@@ -12,47 +12,141 @@ Local MCP server with Ollama support for semantic search of a codebase.
 
 ## Prerequisites
 
-- Node.js ≥ 18
-- [Ollama](https://ollama.com/) running locally with an embedding model pulled:
-  ```sh
-  ollama pull nomic-embed-text
-  ```
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Ollama runs as a container)
+- For local development without Docker: Node.js ≥ 18
 
-## Installation
+---
+
+## Docker Setup (recommended)
+
+### 1. Start Ollama and pull the embedding model
+
+```sh
+docker compose up -d ollama
+```
+
+Wait a moment for Ollama to be ready, then pull the embedding model:
+
+```sh
+docker exec ollama ollama pull nomic-embed-text
+```
+
+Alternatively, let the included `ollama-pull` helper service do it automatically:
+
+```sh
+docker compose up ollama-pull
+```
+
+Ollama is now reachable on your host at `http://localhost:11434` and inside the
+`mcp-net` Docker network as `http://ollama:11434`.
+
+### 2. Build the MCP server image
+
+```sh
+docker compose build codebase-semantics-mcp
+```
+
+This produces the `codebase-semantics-mcp:latest` image used in all Docker-based workflows below.
+
+---
+
+## Usage
+
+### Option A — Docker (recommended)
+
+The MCP server uses stdio transport, so your MCP client (e.g. Claude Desktop) launches
+a fresh container per session.  Configure it with `docker run`:
+
+#### Claude Desktop — Docker config
+
+Edit `claude_desktop_config.json` and add:
+
+```json
+{
+  "mcpServers": {
+    "codebase-semantics": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "--network", "mcp-net",
+        "-e", "OLLAMA_BASE_URL=http://ollama:11434",
+        "-v", "codebase-semantics-mcp_mcp-data:/data",
+        "-v", "C:/Users/you/projects:/projects:ro",
+        "codebase-semantics-mcp:latest"
+      ]
+    }
+  }
+}
+```
+
+> **Windows path note:** replace `C:/Users/you/projects` with the host path
+> containing the projects you want to index.  The path inside the container
+> (`/projects`) is what you pass to `index_project`.
+
+#### Indexing a project from Docker
+
+After connecting, call the `index_project` tool and pass the **container-side** path:
+
+```
+index_project(name="my-app", path="/projects/my-app")
+```
+
+#### Connecting to Ollama from a standalone container (no compose network)
+
+If you started Ollama outside of this compose file, use `host.docker.internal`
+instead of the service name:
+
+```sh
+docker run --rm -i \
+  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+  -v codebase-semantics-mcp_mcp-data:/data \
+  -v C:/Users/you/projects:/projects:ro \
+  codebase-semantics-mcp:latest
+```
+
+---
+
+### Option B — Node.js (local dev / no Docker)
 
 ```sh
 npm install
 npm run build
-```
-
-## Usage
-
-### Run as an MCP server (stdio)
-
-```sh
 node dist/index.js
 ```
 
-Environment variables:
+Set `OLLAMA_BASE_URL` to point to the Ollama container exposed on your host:
 
-| Variable         | Default                    | Description                          |
-|------------------|----------------------------|--------------------------------------|
-| `MCP_DATA_DIR`   | `<repo>/data`              | Directory where `index.db` is stored |
-| `OLLAMA_BASE_URL`| `http://localhost:11434`   | Ollama API base URL                  |
-| `OLLAMA_MODEL`   | `nomic-embed-text`         | Ollama embedding model               |
+```sh
+OLLAMA_BASE_URL=http://localhost:11434 node dist/index.js
+```
 
-### Claude Desktop config example
+#### Claude Desktop — Node config
 
 ```json
 {
   "mcpServers": {
     "codebase-semantics": {
       "command": "node",
-      "args": ["/absolute/path/to/dist/index.js"]
+      "args": ["C:/absolute/path/to/dist/index.js"],
+      "env": {
+        "OLLAMA_BASE_URL": "http://localhost:11434"
+      }
     }
   }
 }
 ```
+
+---
+
+## Environment Variables
+
+| Variable          | Default (Docker image)      | Default (Node)               | Description                          |
+|-------------------|-----------------------------|------------------------------|--------------------------------------|
+| `MCP_DATA_DIR`    | `/data`                     | `<repo>/data`                | Directory where `index.db` is stored |
+| `OLLAMA_BASE_URL` | `http://ollama:11434`       | `http://localhost:11434`     | Ollama API base URL                  |
+| `OLLAMA_MODEL`    | `nomic-embed-text`          | `nomic-embed-text`           | Ollama embedding model               |
+
+---
 
 ## MCP Tools
 
@@ -63,6 +157,8 @@ Environment variables:
 | `list_projects`  | List all indexed projects                            |
 | `delete_project` | Delete a project and all its indexed data            |
 | `stats`          | Show file/chunk statistics for a project             |
+
+---
 
 ## Project Structure
 
@@ -88,7 +184,9 @@ src/
 └── utils/
     └── hashing.ts        # SHA-256 content hashing
 data/
-└── projects/             # SQLite database stored here
+└── projects/             # SQLite database stored here (host dev only)
+Dockerfile                # Multi-stage image build for the MCP server
+docker-compose.yml        # Ollama + MCP services on the mcp-net network
 ```
 
 ## Development
