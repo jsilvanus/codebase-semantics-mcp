@@ -4,6 +4,7 @@ const DEFAULT_EMBED_MODEL = "nomic-embed-text";
 export interface OllamaConfig {
   baseUrl?: string;
   model?: string;
+  timeoutMs?: number;
 }
 
 /**
@@ -16,12 +17,25 @@ export async function embed(
 ): Promise<Float32Array> {
   const baseUrl = config.baseUrl ?? DEFAULT_OLLAMA_BASE_URL;
   const model = config.model ?? DEFAULT_EMBED_MODEL;
-
-  const response = await fetch(`${baseUrl}/api/embed`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, input: text }),
-  });
+  const timeoutMs = config.timeoutMs ?? 30000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/api/embed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model, input: text }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      throw new Error(`Ollama embed request timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const body = await response.text();
