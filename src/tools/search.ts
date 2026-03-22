@@ -51,11 +51,33 @@ export function registerSearchTool(
       }
 
       const filePathIndex = buildFilePathIndex(db, proj.id);
-      const results = await semanticSearch(db, proj.id, query, filePathIndex, {
-        topK: top_k,
-        minScore: min_score,
-        ollamaConfig: { baseUrl: ollamaBaseUrl, model: ollamaModel },
-      });
+
+      let results;
+      try {
+        results = await semanticSearch(db, proj.id, query, filePathIndex, {
+          topK: top_k,
+          minScore: min_score,
+          ollamaConfig: { baseUrl: ollamaBaseUrl, model: ollamaModel },
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const isConnectionError =
+          message.includes("fetch failed") ||
+          message.includes("ECONNREFUSED") ||
+          message.includes("ENOTFOUND");
+        const hint = isConnectionError
+          ? `\n\nEnsure Ollama is running at ${ollamaBaseUrl} with model "${ollamaModel}" pulled:\n  ollama serve\n  ollama pull ${ollamaModel}`
+          : "";
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Search failed: ${message}${hint}`,
+            },
+          ],
+          isError: true,
+        };
+      }
 
       if (results.length === 0) {
         return {

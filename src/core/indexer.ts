@@ -64,6 +64,7 @@ export interface IndexResult {
   indexed: number;
   skipped: number;
   failed: number;
+  embeddingFailures: number;
   errors: string[];
 }
 
@@ -116,12 +117,12 @@ async function indexFile(
   rootDir: string,
   absolutePath: string,
   ollamaConfig: OllamaConfig
-): Promise<"indexed" | "skipped" | "failed"> {
+): Promise<{ status: "indexed" | "skipped" | "failed"; embeddingFailures: number }> {
   let code: string;
   try {
     code = readFileSync(absolutePath, "utf8");
   } catch {
-    return "failed";
+    return { status: "failed", embeddingFailures: 0 };
   }
 
   const hash = hashContent(code);
@@ -129,7 +130,7 @@ async function indexFile(
   const existing: FileRow | undefined = getFile(db, projectId, relPath);
 
   if (existing && existing.hash === hash) {
-    return "skipped";
+    return { status: "skipped", embeddingFailures: 0 };
   }
 
   const fileRow = upsertFile(db, projectId, relPath, hash);
@@ -138,13 +139,14 @@ async function indexFile(
   deleteChunksByFile(db, fileRow.id);
 
   const chunks = chunkFile(code, absolutePath);
+  let embeddingFailures = 0;
 
   for (const chunk of chunks) {
     let embedding: Float32Array | null = null;
     try {
       embedding = await embed(chunk.content, ollamaConfig);
     } catch {
-      // If embedding fails, store chunk without embedding (still searchable by text)
+      embeddingFailures++;
     }
     insertChunk(
       db,
@@ -159,7 +161,7 @@ async function indexFile(
     );
   }
 
-  return "indexed";
+  return { status: "indexed", embeddingFailures };
 }
 
 /**
@@ -177,6 +179,7 @@ export async function indexProject(
       indexed: 0,
       skipped: 0,
       failed: 0,
+      embeddingFailures: 0,
       errors: [`Path does not exist: "${rootDir}". If running in Docker, use the container-side path (e.g. /projects/my-repo).`],
     };
   }
@@ -185,6 +188,7 @@ export async function indexProject(
     indexed: 0,
     skipped: 0,
     failed: 0,
+    embeddingFailures: 0,
     errors: [],
     indexedFiles: [],
   };
@@ -194,17 +198,18 @@ export async function indexProject(
     const file = files[i];
     try {
       const outcome = await indexFile(db, projectId, rootDir, file, ollamaConfig);
-      result[outcome]++;
+      result[outcome.status]++;
+      result.embeddingFailures += outcome.embeddingFailures;
       if (onProgress) {
         const rel = file.startsWith(rootDir) ? file.slice(rootDir.length).replace(/^\/|^\\/, "") : file;
-        const status = outcome === "indexed" ? "Indexed" : outcome === "skipped" ? "Skipped" : "Failed";
+        const status = outcome.status === "indexed" ? "Indexed" : outcome.status === "skipped" ? "Skipped" : "Failed";
         // Fire-and-forget to avoid blocking indexing if the client is slow or disconnected
         void onProgress(`${status} ${rel} (${i + 1}/${total})`, i + 1, total).catch(() => {
           /* ignore notification errors */
         });
       }
 
-      if (outcome === "indexed") {
+      if (outcome.status === "indexed") {
         const rel = file.startsWith(rootDir) ? file.slice(rootDir.length).replace(/^\/|^\\/, "") : file;
         result.indexedFiles.push(rel);
       }

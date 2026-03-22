@@ -49,6 +49,16 @@ export function registerIndexProjectTool(
         `Failed: ${result.failed} files`,
       ];
 
+      if (result.embeddingFailures > 0) {
+        summary.push(
+          `Embedding failures: ${result.embeddingFailures} chunks (semantic search will be degraded)`,
+          "",
+          `Ensure Ollama is running at ${ollamaBaseUrl} with model "${ollamaModel}" pulled:`,
+          `  ollama serve`,
+          `  ollama pull ${ollamaModel}`
+        );
+      }
+
       if ((result as any).indexedFiles && (result as any).indexedFiles.length > 0) {
         summary.push('', 'Indexed files:', ...(result as any).indexedFiles.slice(0, 200));
         if ((result as any).indexedFiles.length > 200) {
