@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, relative, extname } from "path";
 import { hashContent } from "../utils/hashing.js";
 import { chunkFile } from "./chunking.js";
@@ -165,15 +165,30 @@ export async function indexProject(
   db: Database.Database,
   projectId: number,
   rootDir: string,
-  ollamaConfig: OllamaConfig = {}
+  ollamaConfig: OllamaConfig = {},
+  onProgress?: (message: string, progress: number, total: number) => Promise<void>
 ): Promise<IndexResult> {
+  if (!existsSync(rootDir)) {
+    return {
+      indexed: 0,
+      skipped: 0,
+      failed: 0,
+      errors: [`Path does not exist: "${rootDir}". If running in Docker, use the container-side path (e.g. /projects/my-repo).`],
+    };
+  }
   const files = collectFiles(rootDir);
   const result: IndexResult = { indexed: 0, skipped: 0, failed: 0, errors: [] };
+  const total = files.length;
 
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
     try {
       const outcome = await indexFile(db, projectId, rootDir, file, ollamaConfig);
       result[outcome]++;
+      if (onProgress && outcome === "indexed") {
+        const rel = file.startsWith(rootDir) ? file.slice(rootDir.length).replace(/^\/|^\\/, "") : file;
+        await onProgress(`Indexed ${rel}`, i + 1, total);
+      }
     } catch (err) {
       result.failed++;
       result.errors.push(

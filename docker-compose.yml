@@ -55,11 +55,11 @@ services:
     networks:
       - mcp-net
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=nomic-embed-text
       - MCP_DATA_DIR=/data
     volumes:
-      - mcp-data:/data
+      - mcp-semantics-data:/data
       # Mount any project directories you want to index, e.g.:
       # - C:/Users/you/projects/my-app:/projects/my-app:ro
     depends_on:
@@ -70,7 +70,7 @@ services:
 
 volumes:
   ollama-data:
-  mcp-data:
+  mcp§  -data:
 
 networks:
   mcp-net:

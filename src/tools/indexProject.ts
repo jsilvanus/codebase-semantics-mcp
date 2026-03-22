@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createProject } from "../core/projectManager.js";
 import { indexProject } from "../core/indexer.js";
 import type Database from "better-sqlite3";
+import type { ProgressToken } from "@modelcontextprotocol/sdk/types.js";
 
 export function registerIndexProjectTool(
   server: McpServer,
@@ -22,12 +23,23 @@ export function registerIndexProjectTool(
         .string()
         .describe("Absolute path to the project root directory"),
     },
-    async ({ name, path }) => {
+    async ({ name, path }, extra) => {
+      const progressToken = extra._meta?.progressToken as ProgressToken | undefined;
+
+      const onProgress = progressToken
+        ? async (message: string, progress: number, total: number) => {
+            await extra.sendNotification({
+              method: "notifications/progress",
+              params: { progressToken, progress, total, message },
+            });
+          }
+        : undefined;
+
       const project = createProject(db, name, path);
       const result = await indexProject(db, project.id, path, {
         baseUrl: ollamaBaseUrl,
         model: ollamaModel,
-      });
+      }, onProgress);
 
       const summary = [
         `Project: ${name}`,
