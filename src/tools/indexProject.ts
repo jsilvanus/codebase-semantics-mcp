@@ -49,6 +49,13 @@ export function registerIndexProjectTool(
         `Failed: ${result.failed} files`,
       ];
 
+      if ((result as any).indexedFiles && (result as any).indexedFiles.length > 0) {
+        summary.push('', 'Indexed files:', ...(result as any).indexedFiles.slice(0, 200));
+        if ((result as any).indexedFiles.length > 200) {
+          summary.push(`... and ${(result as any).indexedFiles.length - 200} more`);
+        }
+      }
+
       if (result.errors.length > 0) {
         summary.push("", "Errors:", ...result.errors.slice(0, 10));
         if (result.errors.length > 10) {

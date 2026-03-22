@@ -1,0 +1,10 @@
+{
+    "chat.mcp.serverSampling": {
+        "codebase-semantics-mcp/.vscode/mcp.json: codebase-semantics": {
+            "allowedModels": [
+                "copilot/auto",
+                "copilot/gpt-5-mini"
+            ]
+        }
+    }
+}

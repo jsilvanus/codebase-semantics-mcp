@@ -7,7 +7,7 @@ export interface Chunk {
   name: string | null;
   startLine: number | null;
   endLine: number | null;
-}
+} 
 
 const MAX_CHUNK_CHARS = 4000;
 const FALLBACK_CHUNK_LINES = 60;

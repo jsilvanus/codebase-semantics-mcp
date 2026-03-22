@@ -67,6 +67,10 @@ export interface IndexResult {
   errors: string[];
 }
 
+export interface IndexResultWithFiles extends IndexResult {
+  indexedFiles: string[];
+}
+
 /**
  * Recursively collects all indexable source files under rootDir.
  */
@@ -177,7 +181,13 @@ export async function indexProject(
     };
   }
   const files = collectFiles(rootDir);
-  const result: IndexResult = { indexed: 0, skipped: 0, failed: 0, errors: [] };
+  const result: IndexResultWithFiles = {
+    indexed: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+    indexedFiles: [],
+  };
   const total = files.length;
 
   for (let i = 0; i < files.length; i++) {
@@ -188,7 +198,15 @@ export async function indexProject(
       if (onProgress) {
         const rel = file.startsWith(rootDir) ? file.slice(rootDir.length).replace(/^\/|^\\/, "") : file;
         const status = outcome === "indexed" ? "Indexed" : outcome === "skipped" ? "Skipped" : "Failed";
-        await onProgress(`${status} ${rel} (${i + 1}/${total})`, i + 1, total);
+        // Fire-and-forget to avoid blocking indexing if the client is slow or disconnected
+        void onProgress(`${status} ${rel} (${i + 1}/${total})`, i + 1, total).catch(() => {
+          /* ignore notification errors */
+        });
+      }
+
+      if (outcome === "indexed") {
+        const rel = file.startsWith(rootDir) ? file.slice(rootDir.length).replace(/^\/|^\\/, "") : file;
+        result.indexedFiles.push(rel);
       }
     } catch (err) {
       result.failed++;
