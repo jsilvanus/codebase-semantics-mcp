@@ -70,7 +70,7 @@ services:
 
 volumes:
   ollama-data:
-  mcp§  -data:
+  mcp-semantics-data:
 
 networks:
   mcp-net:

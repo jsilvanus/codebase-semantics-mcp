@@ -185,9 +185,10 @@ export async function indexProject(
     try {
       const outcome = await indexFile(db, projectId, rootDir, file, ollamaConfig);
       result[outcome]++;
-      if (onProgress && outcome === "indexed") {
+      if (onProgress) {
         const rel = file.startsWith(rootDir) ? file.slice(rootDir.length).replace(/^\/|^\\/, "") : file;
-        await onProgress(`Indexed ${rel}`, i + 1, total);
+        const status = outcome === "indexed" ? "Indexed" : outcome === "skipped" ? "Skipped" : "Failed";
+        await onProgress(`${status} ${rel} (${i + 1}/${total})`, i + 1, total);
       }
     } catch (err) {
       result.failed++;
