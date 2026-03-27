@@ -83,6 +83,19 @@ Edit `claude_desktop_config.json` and add:
 > containing the projects you want to index.  The path inside the container
 > (`/projects`) is what you pass to `index_project`.
 
+### Add MCP to VS Code user profile
+
+You can register the Dockerised MCP server with VS Code using the `--add-mcp` CLI.
+Replace the host path and `OLLAMA_BASE_URL` as needed for your environment.
+
+```bash
+code --add-mcp '{"name":"codebase-semantics","command":"docker","args":["run","--rm","-i","--network","mcp-net","-e","OLLAMA_BASE_URL=http://host.docker.internal:11434","-v","codebase-semantics-mcp_mcp-data:/data","-v","C:/Users/you/projects:/projects:ro","codebase-semantics-mcp:latest"]}'
+```
+
+Notes: make sure the `code` CLI is available in your PATH. On Windows replace
+`C:/Users/you/projects` with your actual projects path and prefer
+`http://host.docker.internal:11434` if Ollama is exposed on the host.
+
 #### Indexing a project from Docker
 
 After connecting, call the `index_project` tool and pass the **container-side** path:
