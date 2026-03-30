@@ -22,7 +22,7 @@ export async function embed(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/api/embed`, {
+    response = await fetch(`${baseUrl}/api/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model, input: text }),

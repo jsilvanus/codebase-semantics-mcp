@@ -140,7 +140,7 @@ OLLAMA_BASE_URL=http://localhost:11434 node dist/index.js
   "mcpServers": {
     "codebase-semantics": {
       "command": "node",
-      "args": ["C:/absolute/path/to/dist/index.js"],
+      "args": ["C:/Users/jsilv/Code/codebase-semantics/dist/index.js"],
       "env": {
         "OLLAMA_BASE_URL": "http://localhost:11434"
       }
